@@ -177,15 +177,29 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() })
 })
 
-// API routes
-app.use("/api", apiRoutes)
+try {
+  console.log("Loading API routes...")
+  // API routes
+  app.use("/api", apiRoutes)
+  console.log("✅ API routes loaded successfully")
+} catch (error) {
+  console.error("❌ Error loading API routes:", error.message)
+  console.error("Stack:", error.stack)
+}
 
-// Embed routes (direct mount for public access)
-const embedRoutes = require("./routes/embed/embedRoutes")
-app.use("/embed", embedRoutes)
+try {
+  console.log("Loading embed routes...")
+  // Embed routes (direct mount for public access)
+  const embedRoutes = require("./routes/embed/embedRoutes")
+  app.use("/embed", embedRoutes)
 
-// Also mount embed routes under /api for API access
-app.use("/api/embed", embedRoutes)
+  // Also mount embed routes under /api for API access
+  app.use("/api/embed", embedRoutes)
+  console.log("✅ Embed routes loaded successfully")
+} catch (error) {
+  console.error("❌ Error loading embed routes:", error.message)
+  console.error("Stack:", error.stack)
+}
 
 // Session cleanup function
 const cleanupExpiredSessions = async () => {
