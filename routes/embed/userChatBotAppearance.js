@@ -669,7 +669,7 @@ router.get("/chatbot-appearance", (req, res) => {
             baseUrl: '${
               process.env.BACKEND_URL ||
               process.env.INNGEST_SERVE_HOST ||
-              "https://harmless-flea-inviting.ngrok-free.app"
+              "https://saaschatbotbackend.onrender.com"
             }'
         };
 

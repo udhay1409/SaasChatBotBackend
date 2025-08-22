@@ -719,7 +719,7 @@ router.get('/user-chatbot', (req, res) => {
         // Configuration
         const CONFIG = {
             configId: '${configId || 'default'}',
-            baseUrl: '${process.env.INNGEST_SERVE_HOST || 'https://harmless-flea-inviting.ngrok-free.app'}',
+            baseUrl: '${process.env.INNGEST_SERVE_HOST || 'https://saaschatbotbackend.onrender.com'}',
             sessionId: null
         };
 

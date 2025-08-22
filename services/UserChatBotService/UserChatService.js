@@ -346,7 +346,7 @@ Provide a concise, helpful response with clickable contact links when needed:`);
       const baseUrl =
         process.env.BACKEND_URL ||
         process.env.INNGEST_SERVE_HOST ||
-        "https://harmless-flea-inviting.ngrok-free.app";
+        "https://saaschatbotbackend.onrender.com";
       let documentLinks = "";
 
       if (config.uploadedDocuments && config.uploadedDocuments.length > 0) {

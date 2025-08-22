@@ -621,7 +621,7 @@
     
     if (currentScript) {
       const configId = currentScript.getAttribute('data-config-id') || 'default';
-      const baseUrl = currentScript.getAttribute('data-base-url') || 'https://harmless-flea-inviting.ngrok-free.app';
+      const baseUrl = currentScript.getAttribute('data-base-url') || 'https://saaschatbotbackend.onrender.com';
       
       const widget = createChatBotWidget(configId, baseUrl);
       document.body.appendChild(widget);

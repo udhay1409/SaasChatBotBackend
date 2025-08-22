@@ -123,9 +123,9 @@ app.get("/public/UserChatBotWidget/userChatBotWidget.js", (req, res) => {
   let widgetContent = fs.readFileSync(widgetPath, 'utf8');
   
   // Replace the hardcoded base URL with environment variable
-  const baseUrl = process.env.BACKEND_URL || process.env.INNGEST_SERVE_HOST || 'https://harmless-flea-inviting.ngrok-free.app';
+  const baseUrl = process.env.BACKEND_URL || process.env.INNGEST_SERVE_HOST || 'https://saaschatbotbackend.onrender.com';
   widgetContent = widgetContent.replace(
-    "baseUrl: 'https://harmless-flea-inviting.ngrok-free.app',",
+    "baseUrl: 'https://saaschatbotbackend.onrender.com',",
     `baseUrl: '${baseUrl}',`
   );
   
