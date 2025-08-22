@@ -1,45 +1,20 @@
-const express = require("express")
-const cors = require("cors")
-const session = require("express-session")
-const passport = require("./config/auth")
-const { connectDB, disconnectDB } = require("./config/database")
-const apiRoutes = require("./routes")
-const embedRoutes = require("./routes/embed/embedRoutes")
-require("dotenv").config()
+const express = require("express");
+const cors = require("cors");
+const session = require("express-session");
+const passport = require("./config/auth");
+const { connectDB, disconnectDB } = require("./config/database");
+const apiRoutes = require("./routes");
+require("dotenv").config();
 
-const app = express()
-const PORT = process.env.PORT || 5000
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-const validateRoute = (routePath, routeHandler, method = "USE") => {
-  try {
-    console.log(`[v0] Validating route: ${method} ${routePath}`)
-
-    // Check for common route parameter issues
-    if (routePath.includes("/:") && routePath.includes(":")) {
-      const paramMatches = routePath.match(/:([^/]*)/g)
-      if (paramMatches) {
-        paramMatches.forEach((param) => {
-          if (param === ":" || param === ":/") {
-            throw new Error(`Invalid route parameter: ${param} in route ${routePath}`)
-          }
-        })
-      }
-    }
-
-    return true
-  } catch (error) {
-    console.error(`❌ Route validation failed for ${routePath}:`, error.message)
-    throw error
-  }
-}
-
+// Middleware
 app.use(
   cors({
-    origin: (origin, callback) => {
-      console.log("[v0] CORS request from origin:", origin)
-
+    origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true)
+      if (!origin) return callback(null, true);
 
       // Allow specific origins
       const allowedOrigins = [
@@ -47,228 +22,187 @@ app.use(
         process.env.BACKEND_URL,
         process.env.INNGEST_SERVE_HOST,
         "http://localhost:3000", // Add localhost for development
-        "https://saas-chat-bot-frontend-ten.vercel.app", // Add your specific frontend URL
-        "https://saaschatbotbackend.onrender.com", // Add your backend URL
-      ]
+      ];
 
-      const validOrigins = allowedOrigins.filter((allowedOrigin) => allowedOrigin && allowedOrigin.trim() !== "")
-      console.log("[v0] Valid origins:", validOrigins)
-
-      if (validOrigins.includes(origin)) {
-        console.log("[v0] Origin allowed:", origin)
-        return callback(null, true)
+      // Allow any origin for embed routes (for chatbot embedding)
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
 
-      console.log("[v0] Origin not in list, but allowing anyway:", origin)
-      return callback(null, true)
+      // Allow all origins for embedded chatbot
+      return callback(null, true);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
-      "Content-Type",
-      "Authorization",
+      "Content-Type", 
+      "Authorization", 
       "X-Requested-With",
-      "ngrok-skip-browser-warning",
+      "ngrok-skip-browser-warning", // Add ngrok header
       "Accept",
       "Origin",
       "Cache-Control",
+      "X-Requested-With"
     ],
-    preflightContinue: false,
-    optionsSuccessStatus: 200,
-  }),
-)
-
-app.options("*", (req, res) => {
-  console.log("[v0] Preflight request for:", req.url, "from origin:", req.headers.origin)
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*")
-  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type,Authorization,X-Requested-With,ngrok-skip-browser-warning,Accept,Origin,Cache-Control",
-  )
-  res.header("Access-Control-Allow-Credentials", "true")
-  res.sendStatus(200)
-})
-
-app.use(express.json())
+  })
+);
+app.use(express.json());
 
 // Session middleware for Passport
-app.use(
-  session({
-    secret: process.env.JWT_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    },
-  }),
-)
+app.use(session({
+  secret: process.env.JWT_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+}));
 
 // Initialize Passport
-app.use(passport.initialize())
-app.use(passport.session())
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Serve static files from public directory
-app.use("/public", express.static("public"))
+app.use("/public", express.static("public"));
 
 // Serve user chatbot documents with proper headers for download
 app.get("/api/documents/user-chatbot/:configId/:filename", async (req, res) => {
   try {
-    const { configId, filename } = req.params
-    const fs = require("fs")
-    const path = require("path")
-
+    const { configId, filename } = req.params;
+    const fs = require('fs');
+    const path = require('path');
+    
     // Verify the chatbot exists and get document info
-    const { prisma } = require("./config/database")
+    const { prisma } = require('./config/database');
     const chatbot = await prisma.userChatBot.findUnique({
       where: { id: configId },
-      select: { uploadedDocuments: true, companyName: true },
-    })
-
+      select: { uploadedDocuments: true, companyName: true }
+    });
+    
     if (!chatbot) {
-      return res.status(404).json({ error: "Chatbot not found" })
+      return res.status(404).json({ error: 'Chatbot not found' });
     }
-
+    
     // Find the document in the chatbot's uploaded documents
-    const document = chatbot.uploadedDocuments.find((doc) => doc.filename === filename)
+    const document = chatbot.uploadedDocuments.find(doc => doc.filename === filename);
     if (!document) {
-      return res.status(404).json({ error: "Document not found" })
+      return res.status(404).json({ error: 'Document not found' });
     }
-
+    
     // Construct file path
-    const filePath = path.join(__dirname, "public", "user-chat-bot", filename)
-
+    const filePath = path.join(__dirname, 'public', 'user-chat-bot', filename);
+    
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "File not found on server" })
+      return res.status(404).json({ error: 'File not found on server' });
     }
-
+    
     // Set headers for download
-    res.setHeader("Content-Type", "application/pdf")
-    res.setHeader("Content-Disposition", `attachment; filename="${document.name}"`)
-    res.setHeader("Access-Control-Allow-Origin", "*")
-
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
     // Send file
-    res.sendFile(filePath)
+    res.sendFile(filePath);
+    
   } catch (error) {
-    console.error("Error serving document:", error)
-    res.status(500).json({ error: "Internal server error" })
+    console.error('Error serving document:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-})
+});
 
 // Dynamic widget endpoint that injects environment variables
 app.get("/public/UserChatBotWidget/userChatBotWidget.js", (req, res) => {
-  const fs = require("fs")
-  const path = require("path")
-
+  const fs = require('fs');
+  const path = require('path');
+  
   // Read the widget file
-  const widgetPath = path.join(__dirname, "public", "UserChatBotWidget", "userChatBotWidget.js")
-  let widgetContent = fs.readFileSync(widgetPath, "utf8")
-
+  const widgetPath = path.join(__dirname, 'public', 'UserChatBotWidget', 'userChatBotWidget.js');
+  let widgetContent = fs.readFileSync(widgetPath, 'utf8');
+  
   // Replace the hardcoded base URL with environment variable
-  const baseUrl = process.env.BACKEND_URL || process.env.INNGEST_SERVE_HOST
-  widgetContent = widgetContent.replace("baseUrl: 'https://saaschatbotbackend.onrender.com',", `baseUrl: '${baseUrl}',`)
-
-  res.setHeader("Content-Type", "application/javascript")
-  res.send(widgetContent)
-})
+  const baseUrl = process.env.BACKEND_URL || process.env.INNGEST_SERVE_HOST || 'https://harmless-flea-inviting.ngrok-free.app';
+  widgetContent = widgetContent.replace(
+    "baseUrl: 'https://harmless-flea-inviting.ngrok-free.app',",
+    `baseUrl: '${baseUrl}',`
+  );
+  
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(widgetContent);
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
-  const originalSend = res.send
+  const originalSend = res.send;
   res.send = function (data) {
-    const method = req.method
-    const url = req.originalUrl
-    const statusCode = res.statusCode
+    const method = req.method;
+    const url = req.originalUrl;
+    const statusCode = res.statusCode;
 
-    console.log(`${method} ${url} - ${statusCode}`)
+    console.log(`${method} ${url} - ${statusCode}`);
 
-    originalSend.call(this, data)
-  }
+    originalSend.call(this, data);
+  };
 
-  next()
-})
+  next();
+});
 
 // Basic route
 app.get("/", (req, res) => {
-  res.json({ message: "Backend server is running!" })
-})
+  res.json({ message: "Backend server is running!" });
+});
 
 // Health check route
 app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() })
-})
+  res.json({ status: "OK", timestamp: new Date().toISOString() });
+});
 
-try {
-  console.log("Loading API routes...")
-  const apiRoutes = require("./routes")
 
-  // Validate the main API route mount
-  validateRoute("/api", apiRoutes, "USE")
+// API routes
+app.use("/api", apiRoutes);
 
-  // API routes
-  app.use("/api", apiRoutes)
-  console.log("✅ API routes loaded successfully")
-} catch (error) {
-  console.error("❌ Error loading API routes:", error.message)
-  console.error("Stack:", error.stack)
-  console.log("⚠️ Continuing without API routes...")
-}
+// Embed routes (direct mount for public access)
+const embedRoutes = require("./routes/embed/embedRoutes");
+app.use("/embed", embedRoutes);
 
-try {
-  console.log("Loading embed routes...")
-
-  // Validate embed route mounts
-  validateRoute("/embed", embedRoutes, "USE")
-  validateRoute("/api/embed", embedRoutes, "USE")
-
-  // Embed routes (direct mount for public access)
-  app.use("/embed", embedRoutes)
-
-  // Also mount embed routes under /api for API access
-  app.use("/api/embed", embedRoutes)
-  console.log("✅ Embed routes loaded successfully")
-} catch (error) {
-  console.error("❌ Error loading embed routes:", error.message)
-  console.error("Stack:", error.stack)
-  console.log("⚠️ Continuing without embed routes...")
-}
+// Also mount embed routes under /api for API access
+app.use("/api/embed", embedRoutes);
 
 // Session cleanup function
 const cleanupExpiredSessions = async () => {
   try {
-    const { prisma } = require("./config/database")
+    const { prisma } = require('./config/database');
     const result = await prisma.session.deleteMany({
       where: {
         expires: {
-          lt: new Date(),
-        },
-      },
-    })
+          lt: new Date()
+        }
+      }
+    });
     if (result.count > 0) {
-      console.log(`🧹 Cleaned up ${result.count} expired sessions`)
+      console.log(`🧹 Cleaned up ${result.count} expired sessions`);
     }
   } catch (error) {
-    console.error("❌ Error cleaning up expired sessions:", error)
+    console.error('❌ Error cleaning up expired sessions:', error);
   }
-}
+};
 
 // Start server
 app.listen(PORT, async () => {
-  await connectDB()
-  console.log(`Server running on port ${PORT}`)
-
+  await connectDB();
+  console.log(`Server running on port ${PORT}`);
+  
   // Clean up expired sessions on startup
-  await cleanupExpiredSessions()
-
+  await cleanupExpiredSessions();
+  
   // Set up periodic session cleanup (every hour)
-  setInterval(cleanupExpiredSessions, 60 * 60 * 1000)
-})
+  setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
+});
 
 // Graceful shutdown
 process.on("SIGINT", async () => {
-  await disconnectDB()
-  process.exit(0)
-})
+  await disconnectDB();
+  process.exit(0);
+});
