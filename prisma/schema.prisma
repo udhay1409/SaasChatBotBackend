@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGO_URL")
+}
+
+model EmailConfiguration {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  smtpHost     String
+  smtpPort     String
+  smtpUsername String
+  smtpPassword String
+  fromEmail    String
+  fromName     String
+  encryption   String   @default("tls")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("email_configurations")
+}
+
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  email         String    @unique
+  password      String?   // Optional for Google OAuth users
+  name          String
+  image         String?
+  role          String    @default("user")
+  organizationId String?  @db.ObjectId // Link to organization
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  googleId      String?   @unique
+  provider      String    @default("local") // "local" or "google"
+  lastLogin     DateTime?
+  resetToken    String?
+  resetTokenExpiry DateTime?
+  verificationToken String?
+  
+  // SaaS subscription fields
+  subscription  String    @default("free") // "free", "pro", "enterprise"
+  chatbotsLimit Int       @default(1) // Number of chatbots allowed (1 for free users, 2+ for organizations)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  userChatbots  UserChatBot[] @relation("UserChatbots")
+
+  @@map("users") 
+}
+
+model Session {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String @unique
+  userId    String   @db.ObjectId
+  expires   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model ChatBot {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  companyName         String
+  companyCategory     String
+  instructions        String
+  exampleConversation String
+  chatEnabled         Boolean  @default(true)
+  uploadedDocuments   Json[]   @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("chatbot_configurations")
+}
+
+model UserChatBot {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @db.ObjectId // Owner of the chatbot
+  companyName         String
+  companyEmail        String
+  companyPhone        String
+  companyAddress      String
+  companyCategory     String
+  instructions        String
+  chatEnabled         Boolean  @default(true)
+  uploadedDocuments   Json[]   @default([])
+  
+  // Appearance Settings
+  appearance          Json?    @default("{\"primaryColor\":\"#3b82f6\",\"secondaryColor\":\"#7c3aed\",\"position\":\"bottom-right\",\"borderRadius\":\"12px\",\"borderWidth\":\"2px\",\"borderStyle\":\"solid\",\"gradientType\":\"linear\",\"gradientDirection\":\"135deg\"}")
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  user                User     @relation("UserChatbots", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_chatbots")
+}
+
+model Organization {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String   @unique // Custom organization ID
+  name           String   // Organization name
+  contactPerson  String   // Contact person name
+  email          String
+  phone          String
+  address        String
+  isActive       Boolean  @default(true)
+  
+  // SaaS subscription fields
+  subscription   String   @default("free") // "free", "pro", "enterprise"
+  chatbotsLimit  Int      @default(2) // Number of chatbots allowed
+  UsageChatbot   Int      @default(0) // Number of chatbots used
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("organizations")
+}
