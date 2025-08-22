@@ -5,7 +5,7 @@
   // Configuration from script attributes or global config
   let config = {
     configId: "default",
-    baseUrl: process.env.BACKEND_URL || process.env.INNGEST_SERVE_HOST || "https://harmless-flea-inviting.ngrok-free.app",
+    baseUrl: "https://saaschatbotbackend.onrender.com",
     // baseUrl: "https://harmless-flea-inviting.ngrok-free.app",
     apiEndpoint: null,
     theme: "light",
