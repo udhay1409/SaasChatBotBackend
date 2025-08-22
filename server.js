@@ -12,40 +12,40 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: function (origin, callback) {
+    origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
+      if (!origin) return callback(null, true)
 
-      // Allow specific origins
       const allowedOrigins = [
         process.env.FRONTEND_URL,
         process.env.BACKEND_URL,
         process.env.INNGEST_SERVE_HOST,
         "http://localhost:3000", // Add localhost for development
-      ];
+        "https://saas-chat-bot-frontend-ten.vercel.app", // Add your specific frontend URL
+        "https://saaschatbotbackend.onrender.com", // Add your backend URL
+      ]
 
-      // Allow any origin for embed routes (for chatbot embedding)
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
+      const validOrigins = allowedOrigins.filter((allowedOrigin) => allowedOrigin && allowedOrigin.trim() !== "")
+
+      if (validOrigins.includes(origin)) {
+        return callback(null, true)
       }
 
-      // Allow all origins for embedded chatbot
-      return callback(null, true);
+      return callback(null, true)
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
-      "Content-Type", 
-      "Authorization", 
+      "Content-Type",
+      "Authorization",
       "X-Requested-With",
-      "ngrok-skip-browser-warning", // Add ngrok header
+      "ngrok-skip-browser-warning",
       "Accept",
       "Origin",
       "Cache-Control",
-      "X-Requested-With"
     ],
-  })
-);
+  }),
+)
 app.use(express.json());
 
 // Session middleware for Passport
