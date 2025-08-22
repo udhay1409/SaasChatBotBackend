@@ -4,10 +4,34 @@ const session = require("express-session")
 const passport = require("./config/auth")
 const { connectDB, disconnectDB } = require("./config/database")
 const apiRoutes = require("./routes")
+const embedRoutes = require("./routes/embed/embedRoutes")
 require("dotenv").config()
 
 const app = express()
 const PORT = process.env.PORT || 5000
+
+const validateRoute = (routePath, routeHandler, method = "USE") => {
+  try {
+    console.log(`[v0] Validating route: ${method} ${routePath}`)
+
+    // Check for common route parameter issues
+    if (routePath.includes("/:") && routePath.includes(":")) {
+      const paramMatches = routePath.match(/:([^/]*)/g)
+      if (paramMatches) {
+        paramMatches.forEach((param) => {
+          if (param === ":" || param === ":/") {
+            throw new Error(`Invalid route parameter: ${param} in route ${routePath}`)
+          }
+        })
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error(`❌ Route validation failed for ${routePath}:`, error.message)
+    throw error
+  }
+}
 
 app.use(
   cors({
@@ -179,18 +203,28 @@ app.get("/health", (req, res) => {
 
 try {
   console.log("Loading API routes...")
+  const apiRoutes = require("./routes")
+
+  // Validate the main API route mount
+  validateRoute("/api", apiRoutes, "USE")
+
   // API routes
   app.use("/api", apiRoutes)
   console.log("✅ API routes loaded successfully")
 } catch (error) {
   console.error("❌ Error loading API routes:", error.message)
   console.error("Stack:", error.stack)
+  console.log("⚠️ Continuing without API routes...")
 }
 
 try {
   console.log("Loading embed routes...")
+
+  // Validate embed route mounts
+  validateRoute("/embed", embedRoutes, "USE")
+  validateRoute("/api/embed", embedRoutes, "USE")
+
   // Embed routes (direct mount for public access)
-  const embedRoutes = require("./routes/embed/embedRoutes")
   app.use("/embed", embedRoutes)
 
   // Also mount embed routes under /api for API access
@@ -199,6 +233,7 @@ try {
 } catch (error) {
   console.error("❌ Error loading embed routes:", error.message)
   console.error("Stack:", error.stack)
+  console.log("⚠️ Continuing without embed routes...")
 }
 
 // Session cleanup function
